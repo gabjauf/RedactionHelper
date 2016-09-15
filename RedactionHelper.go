@@ -8,6 +8,7 @@ import (
     "strings"
     "log"
     "sort"
+    "unicode"
 )
 
 // Delete the characters defined in chr inside str
@@ -69,7 +70,13 @@ func (p PairList) TFIDF(m []map[string]int) PairList {
         count := 0
         for text := range m {
             if m[text][p[pair].Key] != 0 { // if the word exists in another map
+                if p[pair].Key == "go" {
+                    fmt.Println("go word detected:", m[text][p[pair].Key])
+                }
                 count += 1
+            }
+            if p[pair].Key == "go" {
+                fmt.Println("count : ", count)
             }
         }
         p[pair].Value = 100 * (math.Log10(float64(len(m) / count))) * float64(p[pair].Value) / float64(ref)
@@ -79,7 +86,7 @@ func (p PairList) TFIDF(m []map[string]int) PairList {
 
 func main() {
 
-    n := flag.Int("n", 20, "The value of n defines the length of the output")
+    l := flag.Int("l", 20, "The value of l defines the length of the output")
     flag.Parse()
     texts := flag.Args()
     if len(texts) == 0 { // error, the user did not enter any input
@@ -105,10 +112,14 @@ func main() {
                 log.Fatal(err)
             }
             content := string(buf[:count]) // converts to string
-            content = strings.ToLower(stripchars(content, ",?;.:/!\"'\\+-*#`")) // delete all the characters corresponding in the string
+            //content = strings.ToLower(stripchars(content, ",?;.:/!\"'\\+-*#`")) // delete all the characters corresponding in the string
+            content = strings.ToLower(content)
             result += content // concatenate with result
         }
-        contentFields := strings.Fields(result) // extract fields (space separated words)
+        f := func(c rune) bool {
+            return !unicode.IsLetter(c) && !unicode.IsNumber(c)
+        }
+        contentFields := strings.FieldsFunc(result, f) // extract fields (space separated words)
         for field := range contentFields {
             wordMap[contentFields[field]] += 1 // add one to the hash map for each field to count appearing of the field
         }
@@ -116,12 +127,11 @@ func main() {
         fmt.Printf("======================= DONE ========================\n")
     }
     union := make(map[string]int) // Defines the variable that holds the union of all the hash maps
-    union = TextsCounts[0]
-    for i := 1; i < len(texts); i++ {
+    for i := 0; i < len(texts); i++ {
         union = join(union, TextsCounts[i])
     }
     unionPairs := rankByWordCount(union) // Sort by count
     unionPairs = unionPairs.TFIDF(TextsCounts) // Calculate the TFIDF and store it in place of counts
     sort.Sort(unionPairs) // Sort again
-    unionPairs.PrettyPrint(int(math.Min(float64(len(unionPairs)), float64(*n))))
+    unionPairs.PrettyPrint(int(math.Min(float64(len(unionPairs)), float64(*l))))
 }
