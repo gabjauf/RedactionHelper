@@ -70,13 +70,7 @@ func (p PairList) TFIDF(m []map[string]int) PairList {
         count := 0
         for text := range m {
             if m[text][p[pair].Key] != 0 { // if the word exists in another map
-                if p[pair].Key == "go" {
-                    fmt.Println("go word detected:", m[text][p[pair].Key])
-                }
                 count += 1
-            }
-            if p[pair].Key == "go" {
-                fmt.Println("count : ", count)
             }
         }
         p[pair].Value = 100 * (math.Log10(float64(len(m) / count))) * float64(p[pair].Value) / float64(ref)
@@ -84,9 +78,11 @@ func (p PairList) TFIDF(m []map[string]int) PairList {
     return p
 }
 
+
 func main() {
 
     l := flag.Int("l", 20, "The value of l defines the length of the output")
+    n := flag.Int("n", 1, "The value of n defines the n-grams extracted from the text")
     flag.Parse()
     texts := flag.Args()
     if len(texts) == 0 { // error, the user did not enter any input
@@ -116,10 +112,27 @@ func main() {
             content = strings.ToLower(content)
             result += content // concatenate with result
         }
-        f := func(c rune) bool {
-            return !unicode.IsLetter(c) && !unicode.IsNumber(c)
+        f := func(c rune) rune {
+            if unicode.IsSpace(c) {
+                return ' '
+            }
+            if !unicode.IsLetter(c) && !unicode.IsNumber(c) {
+                return -1
+            }
+            return c
         }
-        contentFields := strings.FieldsFunc(result, f) // extract fields (space separated words)
+        result = strings.Map(f, result)
+        tmpContentFields := strings.Fields(result)
+        contentFields := make([]string, len(tmpContentFields) / *n)
+        for i := range tmpContentFields { // Not a good algorithm, can probably be improved. Suppress the end of the text.
+            if (i + 1) % *n == 0 {
+                tmp := ""
+                for j := *n - 1; j >= 0; j-- {
+                    tmp += tmpContentFields[i - j] + " "
+                }
+                contentFields[i / *n] = tmp
+            }
+        }
         for field := range contentFields {
             wordMap[contentFields[field]] += 1 // add one to the hash map for each field to count appearing of the field
         }
